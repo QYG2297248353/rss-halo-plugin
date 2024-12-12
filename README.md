@@ -1,137 +1,67 @@
-# plugin-feed
+# Rss Halo Plugin
 
-Halo 2.0 的 RSS 订阅链接生成插件
+RSS插件 Halo 博客版本
 
-## 如何扩展 RSS 源
+![](https://img.shields.io/badge/%E6%96%B0%E7%96%86%E8%90%8C%E6%A3%AE%E8%BD%AF%E4%BB%B6%E5%BC%80%E5%8F%91%E5%B7%A5%E4%BD%9C%E5%AE%A4-%E6%8F%90%E4%BE%9B%E6%8A%80%E6%9C%AF%E6%94%AF%E6%8C%81-blue)
 
-> 从 feed 插件 v1.4.0 版本开始，支持扩展 RSS 功能。
+## 订阅管理
 
-`feed` 插件提供了扩展点，允许其他插件扩展 RSS 源。
++ 全站订阅
+    + 无扩展： `/feed` 或 `/rss`
+    + 含扩展： `/feed.xml` 或 `/rss.xml`
+    + 示例: [https://blog.lifebus.top/rss](https://blog.lifebus.top/rss)
++ 文章分类订阅
+    + `/feed/categories/{slug}.xml`
+    + `slug` 分类名称(配置中的别名)
+    + 简化版：`/rss/categories/{slug}`
+    + 示例: [https://blog.lifebus.top/rss/categories/focus-share](https://blog.lifebus.top/rss/categories/focus-share)
++ 文章作者订阅
+    + `/feed/authors/{name}.xml`
+    + `name` 作者用户名(点击文章的作者，在作者主页地址栏最后一段为用户名)
+    + 简化版：`rss/authors/{name}`
+    + 示例: [https://blog.lifebus.top/rss/authors/qyg2297248353](https://blog.lifebus.top/rss/authors/qyg2297248353)
++ Follow 认证支持
++ 封面支持
 
-### 步骤 1：在插件中引入 feed 依赖
+## 安装说明
 
-在你的插件项目中添加 `feed` 插件的依赖：
+请先关闭自带 `RSS` 插件
+![Halo RSS](https://github.com/user-attachments/assets/b7a1a195-350f-491f-a506-56824f4fa96b)
 
-```groovy
-dependencies {
-    // ...
-    compileOnly "run.halo.feed:api:{version}"
-}
-```
+1. 下载安装包：[Releases 发布库](https://github.com/QYG2297248353/rss-plugin-halo/releases)
+2. 通过 本地安装
+![image](https://github.com/user-attachments/assets/aaf1d4eb-de9c-4c36-932a-151037cd4943)
+3. 完成安装
+![image](https://github.com/user-attachments/assets/15ef4e0b-59af-4efd-959b-62075907746f)
 
-将 `{version}` 替换为实际的 `feed` 插件版本号。
+## 配置说明
+![image](https://github.com/user-attachments/assets/8c136199-d079-4e24-bb9b-f5a1b84b5b5d)
 
-### 步骤 2：实现 `RssRouteItem` 扩展点接口
+## 升级插件
 
-创建一个类实现 `run.halo.feed.RssRouteItem` 接口，提供自定义的 RSS 数据源。例如：
+![image](https://github.com/user-attachments/assets/b6843557-4843-4726-addf-053a2e24208f)
 
-```java
-public class MomentRssProvider implements RssRouteItem {
-    // 实现具体的 RSS 提供逻辑
-}
-```
+![image](https://github.com/user-attachments/assets/2871ef9e-779f-4c86-9f5f-1d204324dcbe)
 
-你可以参考 [PostRssProvider](./app/src/main/java/run/halo/feed/provider/PostRssProvider.java) 示例。
 
-### 步骤 3：声明扩展点
+## 常见问题
 
-在 `src/main/resources/extensions`
-目录下，声明你的扩展。你可以参考 [ext-definition.yaml](app/src/main/resources/extensions/ext-definition.yaml) 文件来完成此步骤。
+### Follow订阅后为什么没有封面？
+由于 Follow 数据取自其自己的后端，当您订阅后发现，文章列表没有封面，说明您的 rss链接 被其他人订阅过。
 
-### 步骤 4：定义配置类并清理 RSS 缓存
+您可以新发布一篇文章，便会出现文章封面。
 
-在插件中定义一个配置类，使用 `@ConditionalOnClass` 注解确保只有在 `run.halo.feed.RssRouteItem` 类存在时才会创建对应的
-Bean。同时，定义事件监听器来清理缓存。
+> 前提：您在文章的设置中配置了封面。
 
-`@ConditionalOnClass` 注解只能使用 name 属性来指定类全限定名，不支持使用 value 属性。
+其他解决方案：由于提供了四个订阅地址 `rss` `feed` `rss.xml` `feed.xml` 您可以选择其他订阅地址。
 
-示例代码：
+### Follow 认证ID 是什么？
+通过 Follow 客户端订阅后，在您的博客上右键会出现 `认证` `Claim` 按钮，点击后会出现认证方式
 
-```java
++ 选择 RSS 标签
+    + `feedId` ==> 认证ID
+    + `userId` ==> 用户ID
 
-@Configuration
-@ConditionalOnClass(name = "run.halo.feed.RssRouteItem")
-@RequiredArgsConstructor
-public class RssAutoConfiguration {
-    private final ApplicationEventPublisher eventPublisher;
+![image](https://github.com/user-attachments/assets/8fdce636-c1a2-4fae-87dd-df2be52bac37)
 
-    @Bean
-    public MomentRssProvider momentRssProvider() {
-        return new MomentRssProvider();
-    }
 
-    @Async
-    @EventListener({MomentUpdatedEvent.class, MomentDeletedEvent.class})
-    public void onMomentUpdatedOrDeleted() {
-        var rule = CacheClearRule.forExact("/feed/moments/rss.xml");
-        var event = RssCacheClearRequested.forRule(this, rule);
-        eventPublisher.publishEvent(event);
-    }
-}
-```
-
-此配置确保了当 `RssRouteItem` 接口存在时，插件才会自动创建 `MomentRssProvider` 并监听相关事件来清理缓存。
-
-### 步骤 5：声明插件依赖
-
-在 `plugin.yaml` 文件中声明 `feed` 插件为可选依赖，确保当 `feed` 插件存在并启用时，插件能够自动注册 RSS 源。
-
-```yaml
-apiVersion: plugin.halo.run/v1alpha1
-kind: Plugin
-metadata:
-    name: moment
-spec:
-    pluginDependencies:
-        "PluginFeed?": ">=1.4.0"
-```
-
-这样，当 `feed` 插件可用时，插件会自动注册自定义的 RSS 源。
-
-## 开发环境
-
-```bash
-git clone git@github.com:halo-dev/plugin-feed.git
-
-# 或者当你 fork 之后
-
-git clone git@github.com:{your_github_id}/plugin-feed.git
-```
-
-```bash
-cd path/to/plugin-feed
-```
-
-```bash
-# macOS / Linux
-./gradlew build
-
-# Windows
-./gradlew.bat build
-```
-
-修改 Halo 配置文件：
-
-```yaml
-halo:
-    plugin:
-        runtime-mode: development
-        classes-directories:
-            - "build/classes"
-            - "build/resources"
-        lib-directories:
-            - "libs"
-        fixedPluginPath:
-            - "/path/to/plugin-feed"
-```
-
-## 使用方式
-
-1. 在 [Releases](https://github.com/halo-dev/plugin-feed/releases) 下载最新的 JAR 文件。
-2. 在 Halo 后台的插件管理上传 JAR 文件进行安装。
-
-目前提供了以下订阅链接类型：
-
-1. 全站订阅：`/feed.xml` 或者 `/rss.xml`
-2. 按照分类订阅（可以在插件设置中关闭）：`/feed/categories/{slug}.xml`
-3. 按照作者订阅（可以在插件设置中关闭）：`/feed/authors/{name}.xml`
